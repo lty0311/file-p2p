@@ -35,7 +35,7 @@
     <button id="rejectBtn">拒绝</button>
   </div>
   <div id="progress"><div id="bar"></div></div>
-  <div id="status">等待连接...</div>
+  <div id="status">请输入传输码开始</div>
 
   <script>
     const API = window.electronAPI;
@@ -73,41 +73,30 @@
     const receiveBtn = document.getElementById("receiveBtn");
     const rejectBtn = document.getElementById("rejectBtn");
 
-    // 重置状态（支持再次传输）
+    // 重置状态（支持再次传输，保留P2P连接）
     function resetState(){
-      console.log("[DEBUG] 重置状态");
-      if(ws){
-        ws.close();
-        ws = null;
-      }
-      if(pc){
-        pc.close();
-        pc = null;
-      }
-      if(dc){
-        dc.close();
-        dc = null;
-      }
+      console.log("[DEBUG] 重置文件传输状态（保留P2P连接）");
+      // 不关闭ws、pc、dc，保留P2P连接
+      // 保留isReady状态，因为P2P连接已经建立
       localFilePath = "";
       saveFilePath = "";
       fileSize = 0;
       sentBytes = 0;
       receivedBytes = 0;
-      isReady = false;
       barEl.style.width = "0%";
       fileTip.textContent = "";
       sendArea.style.display = "none";
       receiveArea.style.display = "none";
-      statusEl.textContent = "等待连接...";
+      statusEl.textContent = "已重置，可以选择新文件继续传输";
       connectBtn.disabled = false;
       pickFileBtn.disabled = false;
       window.receiveFileName = "";
+      resetBtn.style.display = "none";
     }
 
     // 重置按钮
     resetBtn.onclick = ()=>{
       resetState();
-      resetBtn.style.display = "none";
     }
 
     // 接收按钮 - 接收方确认接收
@@ -161,18 +150,93 @@
     // 确认发送按钮
     sendConfirmBtn.onclick = async ()=>{
       sendArea.style.display = "none";
-      statusEl.textContent = "等待对方连接...";
       // 如果已经连接到信令服务器且收到ready消息，立即发起打洞
-      if(ws && ws.readyState === WebSocket.OPEN && isReady && !dc){
-        statusEl.textContent = "开始建立P2P连接...";
-        dc = pc.createDataChannel("file");
-        bindDataChannel();
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        ws.send(JSON.stringify({type:"offer", data:offer}));
-        console.log("[DEBUG] 确认发送后发送offer");
+      if(ws && ws.readyState === WebSocket.OPEN && isReady){
+        statusEl.textContent = "开始发送文件...";
+        // 如果dc已存在（复用连接），直接发送文件元信息
+        if(dc){
+          const info = {
+            type: "file_meta",
+            name: localFilePath.split(/[\\/]/).pop(),
+            size: fileSize
+          };
+          dc.send(JSON.stringify(info));
+          console.log("[DEBUG] 使用现有DataChannel发送文件元信息:", info);
+          sentBytes = 0;
+          sendFile();
+        } else {
+          // 创建新的DataChannel
+          dc = pc.createDataChannel("file");
+          bindDataChannel();
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+          ws.send(JSON.stringify({type:"offer", data:offer}));
+          console.log("[DEBUG] 确认发送后发送offer");
+        }
       } else if(!ws || ws.readyState !== WebSocket.OPEN){
-        statusEl.textContent = "请先连接对方";
+        // 没有连接，尝试自动连接
+        const code = codeInput.value.trim();
+        if(code.length !==6){
+          statusEl.textContent = "请先输入6位传输码";
+          sendArea.style.display = "block"; // 重新显示发送区域
+          return;
+        }
+        statusEl.textContent = "正在连接信令服务器...";
+        
+        // 直接创建连接（简化版）
+        if(ws) ws.close();
+        if(pc) pc.close();
+
+        ws = new WebSocket(`${SIGNAL_URL}?code=${code}`);
+        pc = new RTCPeerConnection({iceServers:STUN_SERVERS});
+
+        // ICE候选处理
+        pc.onicecandidate = e=>{
+          if(e.candidate && ws && ws.readyState === WebSocket.OPEN){
+            ws.send(JSON.stringify({type:"ice", data:e.candidate}));
+          }
+        }
+
+        // 接收端监听DataChannel
+        pc.ondatachannel = e=>{
+          dc = e.channel;
+          bindDataChannel();
+        }
+
+        // 信令消息处理
+        ws.onmessage = async (e)=>{
+          const msg = JSON.parse(e.data);
+          if(msg.type === "ready"){
+            isReady = true;
+            statusEl.textContent = "双方已就绪，开始建立P2P连接...";
+            // 发送方自动创建DataChannel
+            if(localFilePath && !dc){
+              dc = pc.createDataChannel("file");
+              bindDataChannel();
+              const offer = await pc.createOffer();
+              await pc.setLocalDescription(offer);
+              ws.send(JSON.stringify({type:"offer", data:offer}));
+            }
+          }else if(msg.type === "ice"){
+            await pc.addIceCandidate(new RTCIceCandidate(msg.data));
+          }else if(msg.type === "offer"){
+            await pc.setRemoteDescription(new RTCSessionDescription(msg.data));
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            ws.send(JSON.stringify({type:"answer", data:answer}));
+          }else if(msg.type === "answer"){
+            await pc.setRemoteDescription(new RTCSessionDescription(msg.data));
+          }
+        }
+
+        ws.onopen = ()=>{
+          statusEl.textContent = "信令连接成功，等待对方接入";
+        }
+
+        ws.onerror = (err) => {
+          console.error("[DEBUG] WebSocket错误:", err);
+          statusEl.textContent = "WebSocket错误";
+        }
       } else {
         statusEl.textContent = "等待对方连接...";
       }
@@ -330,6 +394,11 @@
       }
       dc.onclose = () => {
         console.log("[DEBUG] DataChannel 已关闭");
+        // 如果已经完成传输，显示重置按钮
+        if(sentBytes >= fileSize && fileSize > 0){
+          statusEl.textContent = "文件传输完成！";
+          resetBtn.style.display = "inline";
+        }
       }
       dc.onmessage = async (e)=>{
         // 接收文件元信息
@@ -362,6 +431,10 @@
               // 收到对方确认，继续发送下一块
               sentBytes = meta.offset;
               sendFile();
+            }else if(meta.type === "transfer_complete"){
+              console.log("[DEBUG] 收到传输完成消息");
+              statusEl.textContent = "文件传输完成！";
+              resetBtn.style.display = "inline";
             }
           } catch(err) {
             console.error("[DEBUG] 解析消息出错:", err);
@@ -378,8 +451,10 @@
             updateProgress(receivedBytes, fileSize);
             // 检查是否传输完成
             if(receivedBytes >= fileSize){
-              statusEl.textContent = "文件接收完成！";
+              statusEl.textContent = "文件接收完成！可以选择新文件继续传输";
               resetBtn.style.display = "inline";
+              // 通知发送方传输完成
+              dc.send(JSON.stringify({type:"transfer_complete"}));
               return;
             }
             // 回发ACK，请求下一分块
@@ -395,7 +470,7 @@
     // 分块流式发送文件（仅P2P通道，不走服务器）
     async function sendFile(){
       if(sentBytes >= fileSize) {
-        statusEl.textContent = "文件传输完成！";
+        statusEl.textContent = "文件传输完成！可以选择新文件继续传输";
         console.log("[DEBUG] 文件传输完成!");
         // 显示重置按钮，支持重新传输
         resetBtn.style.display = "inline";
