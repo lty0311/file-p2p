@@ -1,3 +1,14 @@
 name = "webrtc-signal-server"
 main = "signal.js"
 compatibility_date = "2026-06-12"
+
+# Durable Objects 配置
+[[durable_objects.bindings]]
+name = "SIGNAL_ROOM"
+class_name = "SignalRoom"
+
+# Durable Objects 迁移配置（免费套餐必须使用 new_sqlite_classes）
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["SignalRoom"]
+
