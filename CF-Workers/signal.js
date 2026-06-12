@@ -75,7 +75,7 @@ export default {
     
     if(url.pathname === "/signal"){
       const transferCode = url.searchParams.get("code");
-      if(!transferCode || transferCode.length !== 6){
+      if(!transferCode || transferCode.length === 0 || transferCode.length > 32 || !/^[a-zA-Z0-9]+$/.test(transferCode)){
         return new Response("Invalid transfer code", {status:400});
       }
 

@@ -14,7 +14,7 @@
     
     /* 连接区域 */
     .connection-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-    .code-input{flex:1;max-width:200px;padding:12px 16px;border:2px solid #e5e7eb;border-radius:8px;font-size:15px;transition:border-color 0.2s}
+    .code-input{flex:1;max-width:350px;padding:12px 16px;border:2px solid #e5e7eb;border-radius:8px;font-size:15px;transition:border-color 0.2s}
     .code-input:focus{outline:none;border-color:#2563eb}
     .code-input::placeholder{color:#9ca3af}
     
@@ -28,8 +28,8 @@
     .btn-success:hover{background:#059669}
     .btn-danger{background:#ef4444;color:#fff}
     .btn-danger:hover{background:#dc2626}
-    .btn-outline{background:transparent;border:2px solid #e5e7eb;color:#374151}
-    .btn-outline:hover{background:#f3f4f6;border-color:#d1d5db}
+    .btn-outline{background:rgb(7, 182, 127);color:#fff}
+    .btn-outline:hover{background:#049729;}
     .btn:disabled{opacity:0.5;cursor:not-allowed}
     
     /* 连接状态 */
@@ -102,8 +102,8 @@
   <div class="card">
     <div class="card-title">连接设置</div>
     <div class="connection-bar">
-      <input type="text" id="codeInput" class="code-input" maxlength="6" placeholder="输入6位传输码">
-      <button id="genCode" class="btn btn-outline">生成码</button>
+      <input type="text" id="codeInput" class="code-input" maxlength="32" placeholder="输入传输码（最多32位，字母数字）">
+      <button id="genCode" class="btn btn-outline">生成传输码</button>
       <button id="connectBtn" class="btn btn-primary">连接</button>
       <div id="connectionStatus" class="status-badge status-disconnected">
         <span class="status-dot"></span>
@@ -334,7 +334,11 @@
     
     // ========== 事件处理 ==========
     genCodeBtn.onclick = () => {
-      const code = String(Math.floor(100000 + Math.random() * 900000));
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+      let code = '';
+      for(let i=0; i<32; i++){
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
       codeInput.value = code;
       navigator.clipboard.writeText(code);
       setStatus('已生成传输码并复制');
@@ -387,7 +391,11 @@
         }
       } else {
         const code = codeInput.value.trim();
-        if(code.length !== 6){ setStatus('请输入6位传输码'); sendAllBtn.style.display = 'inline-flex'; return; }
+        if(!code || code.length > 32 || !/^[a-zA-Z0-9]+$/.test(code)){ 
+          setStatus('请输入有效的传输码（最多32位，字母数字）'); 
+          sendAllBtn.style.display = 'inline-flex'; 
+          return; 
+        }
         setStatus('正在连接...');
         await connectToSignalServer(code);
       }
@@ -395,7 +403,10 @@
     
     connectBtn.onclick = async () => {
       const code = codeInput.value.trim();
-      if(code.length !== 6){ setStatus('请输入6位传输码'); return; }
+      if(!code || code.length > 32 || !/^[a-zA-Z0-9]+$/.test(code)){ 
+        setStatus('请输入有效的传输码（最多32位，字母数字）'); 
+        return; 
+      }
       await connectToSignalServer(code);
     };
     
