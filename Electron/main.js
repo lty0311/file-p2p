@@ -1,13 +1,15 @@
-const {app, BrowserWindow, ipcMain, dialog} = require('electron');
+const {app, BrowserWindow, ipcMain, dialog, Menu} = require('electron');
 const path = require('path');
 const fs = require('fs');
 
+app.disableHardwareAcceleration();
+Menu.setApplicationMenu(null);
 let mainWin;
 
 function createWindow(){
   mainWin = new BrowserWindow({
-    width: 600,
-    height: 480,
+    width: 980,
+    height: 640,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       nodeIntegration: false,
@@ -16,7 +18,7 @@ function createWindow(){
   })
   mainWin.loadFile("index.html");
   // 开发打开控制台
-  mainWin.webContents.openDevTools();
+  // mainWin.webContents.openDevTools();
 //   if (process.env.NODE_ENV2 === 'development') {
 //     mainWin.webContents.openDevTools();
 //   }

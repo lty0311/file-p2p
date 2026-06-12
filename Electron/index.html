@@ -4,472 +4,595 @@
   <meta charset="UTF-8">
   <title>P2P文件传输</title>
   <style>
-    *{box-sizing:border-box}
-    body{padding:30px;font-family:system-ui}
-    .box{margin:10px 0}
-    input{padding:8px;width:300px;font-size:16px}
-    button{padding:8px 16px;cursor:pointer;margin-right:5px}
-    #progress{width:100%;height:10px;background:#eee;margin:10px 0}
-    #bar{height:100%;width:0%;background:#2563eb}
-    .file-item{display:flex;align-items:center;padding:8px;border:1px solid #ddd;margin:5px 0;border-radius:4px}
-    .file-item span{flex:1;margin-right:10px}
-    .file-item button{margin-left:5px}
-    .received-file{display:flex;align-items:center;padding:8px;border:1px solid #ddd;margin:5px 0;border-radius:4px}
-    .received-file span{flex:1;margin-right:10px}
-    .received-file button{margin-left:5px}
-    .status-success{color:green}
-    .status-pending{color:orange}
-    .status-rejected{color:red}
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;background:#f5f7fa;min-height:100vh;padding:20px;color:#333}
+    
+    /* 卡片容器 */
+    .card{background:#fff;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,0.08);padding:24px;margin-bottom:20px}
+    .card-title{font-size:16px;font-weight:600;color:#1a1a1a;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+    .card-title::before{content:'';width:4px;height:16px;background:#2563eb;border-radius:2px}
+    
+    /* 连接区域 */
+    .connection-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+    .code-input{flex:1;max-width:200px;padding:12px 16px;border:2px solid #e5e7eb;border-radius:8px;font-size:15px;transition:border-color 0.2s}
+    .code-input:focus{outline:none;border-color:#2563eb}
+    .code-input::placeholder{color:#9ca3af}
+    
+    /* 按钮样式 */
+    .btn{padding:10px 20px;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;transition:all 0.2s;display:inline-flex;align-items:center;gap:6px}
+    .btn-primary{background:#2563eb;color:#fff}
+    .btn-primary:hover{background:#1d4ed8}
+    .btn-secondary{background:#6b7280;color:#fff}
+    .btn-secondary:hover{background:#4b5563}
+    .btn-success{background:#10b981;color:#fff}
+    .btn-success:hover{background:#059669}
+    .btn-danger{background:#ef4444;color:#fff}
+    .btn-danger:hover{background:#dc2626}
+    .btn-outline{background:transparent;border:2px solid #e5e7eb;color:#374151}
+    .btn-outline:hover{background:#f3f4f6;border-color:#d1d5db}
+    .btn:disabled{opacity:0.5;cursor:not-allowed}
+    
+    /* 连接状态 */
+    .status-badge{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;font-size:13px;font-weight:500}
+    .status-disconnected{background:#fee2e2;color:#dc2626}
+    .status-connecting{background:#fef3c7;color:#d97706}
+    .status-connected{background:#d1fae5;color:#059669}
+    .status-dot{width:8px;height:8px;border-radius:50%;background:currentColor}
+    .status-connecting .status-dot{animation:pulse 1.5s infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+    
+    /* 文件列表 */
+    .file-list{border:1px solid #e5e7eb;border-radius:8px;overflow:hidden}
+    .file-item{display:flex;align-items:center;padding:12px 16px;border-bottom:1px solid #e5e7eb;background:#fff;transition:background 0.15s}
+    .file-item:last-child{border-bottom:none}
+    .file-item:hover{background:#f9fafb}
+    .file-item.selected{background:#eff6ff}
+    .file-icon{width:40px;height:40px;background:#f3f4f6;border-radius:8px;display:flex;align-items:center;justify-content:center;margin-right:12px;font-size:20px}
+    .file-info{flex:1;min-width:0}
+    .file-name{font-weight:500;color:#1a1a1a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .file-meta{font-size:12px;color:#6b7280;margin-top:2px}
+    .file-actions{display:flex;gap:8px;margin-left:12px}
+    
+    /* 状态标签 */
+    .tag{padding:4px 10px;border-radius:12px;font-size:12px;font-weight:500}
+    .tag-pending{background:#fef3c7;color:#d97706}
+    .tag-sending{background:#dbeafe;color:#1d4ed8}
+    .tag-done{background:#d1fae5;color:#059669}
+    .tag-rejected{background:#fee2e2;color:#dc2626}
+    .tag-receiving{background:#e0e7ff;color:#4338ca}
+    
+    /* 空状态 */
+    .empty-state{text-align:center;padding:40px 20px;color:#9ca3af}
+    .empty-state-icon{font-size:48px;margin-bottom:12px;opacity:0.5}
+    .empty-state-text{font-size:14px}
+    
+    /* 进度条 */
+    .progress-container{margin-top:16px}
+    .progress-bar{height:8px;background:#e5e7eb;border-radius:4px;overflow:hidden}
+    .progress-fill{height:100%;background:linear-gradient(90deg,#2563eb,#3b82f6);transition:width 0.3s ease;border-radius:4px}
+    .progress-text{font-size:13px;color:#6b7280;margin-top:8px;display:flex;justify-content:space-between}
+    
+    /* 底部状态栏 */
+    .status-bar{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #e5e7eb;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;font-size:14px}
+    .status-message{color:#374151}
+    .status-time{color:#9ca3af;font-size:12px}
+    
+    /* 主内容区域 */
+    .main-content{padding-bottom:60px}
+    
+    /* 添加按钮区域 */
+    .add-file-zone{border:2px dashed #d1d5db;border-radius:8px;padding:32px;text-align:center;cursor:pointer;transition:all 0.2s;margin-top:16px}
+    .add-file-zone:hover{border-color:#2563eb;background:#eff6ff}
+    .add-file-zone-icon{font-size:32px;margin-bottom:8px}
+    .add-file-zone-text{color:#6b7280;font-size:14px}
+    
+    /* 两列布局 */
+    .two-columns{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+    @media (max-width:800px){.two-columns{grid-template-columns:1fr}}
+    
+    /* 统计信息 */
+    .stats{display:flex;gap:24px;margin-top:16px}
+    .stat-item{text-align:center}
+    .stat-value{font-size:24px;font-weight:700;color:#2563eb}
+    .stat-label{font-size:12px;color:#6b7280;margin-top:4px}
   </style>
 </head>
 <body>
-  <div class="box">
-    <h3>6位传输码</h3>
-    <input id="codeInput" maxlength="6" placeholder="输入6位数字">
-    <button id="genCode">生成随机码</button>
-    <button id="connectBtn">连接对方</button>
-  </div>
-  
-  <div class="box">
-    <button id="pickFile">添加文件到发送列表</button>
-    <div id="sendList" style="margin-top:10px;">
-      <h4>待发送文件列表:</h4>
-      <div id="sendFiles"></div>
-      <button id="sendAllBtn" style="display:none;">发送全部</button>
+  <!-- 连接区域 -->
+  <div class="card">
+    <div class="card-title">连接设置</div>
+    <div class="connection-bar">
+      <input type="text" id="codeInput" class="code-input" maxlength="6" placeholder="输入6位传输码">
+      <button id="genCode" class="btn btn-outline">生成码</button>
+      <button id="connectBtn" class="btn btn-primary">连接</button>
+      <div id="connectionStatus" class="status-badge status-disconnected">
+        <span class="status-dot"></span>
+        <span>未连接</span>
+      </div>
+    </div>
+    <div id="progressContainer" class="progress-container" style="display:none;">
+      <div class="progress-bar"><div id="progressBar" class="progress-fill" style="width:0%"></div></div>
+      <div class="progress-text">
+        <span id="progressText">0%</span>
+        <span id="progressDetail">0B / 0B</span>
+      </div>
     </div>
   </div>
   
-  <div id="receiveArea" style="display:none;">
-    <h4>收到文件请求:</h4>
-    <div id="receiveFiles"></div>
+  <div class="main-content">
+    <div class="two-columns">
+      <!-- 发送区域 -->
+      <div class="card">
+        <div class="card-title">发送文件</div>
+        <button id="pickFile" class="btn btn-primary" style="width:100%;">
+          <span>+</span> 添加文件
+        </button>
+        <div id="sendList" class="file-list" style="margin-top:16px;">
+          <div class="empty-state">
+            <div class="empty-state-icon">📁</div>
+            <div class="empty-state-text">暂无待发送文件</div>
+          </div>
+        </div>
+        <button id="sendAllBtn" class="btn btn-success" style="width:100%;margin-top:16px;display:none;">
+          发送全部文件
+        </button>
+      </div>
+      
+      <!-- 接收区域 -->
+      <div class="card">
+        <div class="card-title">接收文件</div>
+        <div id="receiveList" class="file-list">
+          <div class="empty-state">
+            <div class="empty-state-icon">📥</div>
+            <div class="empty-state-text">暂无收到的文件</div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
   
-  <div id="progress"><div id="bar"></div></div>
-  <div id="status">请输入传输码开始</div>
+  <!-- 状态栏 -->
+  <div class="status-bar">
+    <div class="status-message" id="statusMessage">准备就绪</div>
+    <div class="status-time" id="statusTime"></div>
+  </div>
 
   <script>
     const API = window.electronAPI;
     // ========== 配置 ==========
     const SIGNAL_URL = "ws://192.168.20.29:8080";
-    const STUN_SERVERS = [{urls:"stun:stun.cloudflare.com:3478"}, { urls: "stun:stun.qq.com:3478" }];
+    const STUN_SERVERS = [{urls:"stun:stun.cloudflare.com:3478"}, {urls:"stun:stun.qq.com:3478"}];
     const CHUNK_SIZE = 256 * 1024;
     
-    // ========== 全局变量 ==========
-    let ws = null;
-    let pc = null;
-    let dc = null;
-    let isReady = false;
-    let isSending = false;
+    // ========== 状态 ==========
+    let ws = null, pc = null, dc = null;
+    let isReady = false, isSending = false;
+    let sendFiles = [], receiveFiles = [];
+    let currentFileId = null; // 当前正在传输的文件ID
     
-    // 文件列表（支持多文件）
-    let sendFiles = [];      // 发送队列 [{id, path, name, size, sentBytes, status}]
-    let receiveFiles = [];   // 接收队列 [{id, name, size, status}]
-    
-    const statusEl = document.getElementById("status");
-    const barEl = document.getElementById("bar");
+    // ========== DOM ==========
     const codeInput = document.getElementById("codeInput");
     const genCodeBtn = document.getElementById("genCode");
     const connectBtn = document.getElementById("connectBtn");
+    const connectionStatus = document.getElementById("connectionStatus");
     const pickFileBtn = document.getElementById("pickFile");
-    const sendFilesEl = document.getElementById("sendFiles");
+    const sendListEl = document.getElementById("sendList");
+    const receiveListEl = document.getElementById("receiveList");
     const sendAllBtn = document.getElementById("sendAllBtn");
-    const receiveArea = document.getElementById("receiveArea");
-    const receiveFilesEl = document.getElementById("receiveFiles");
-
-    // 生成6位随机传输码
-    genCodeBtn.onclick = ()=>{
-      const code = String(Math.floor(100000 + Math.random()*900000));
-      codeInput.value = code;
-      navigator.clipboard.writeText(code);
-      statusEl.textContent = "已生成传输码，已复制剪贴板";
-    }
-
-    // 添加文件到发送列表
-    pickFileBtn.onclick = async ()=>{
-      const paths = await API.selectFiles(); // 需要支持多选
-      if(!paths || paths.length === 0) return;
-      
-      for(const path of paths){
-        const info = await API.getFileInfo(path);
-        if(info){
-          const fileItem = {
-            id: Date.now() + Math.random(),
-            path,
-            name: info.name,
-            size: info.size,
-            sentBytes: 0,
-            status: "pending"
-          };
-          sendFiles.push(fileItem);
-          renderSendList();
-        }
-      }
-      
-      if(sendFiles.length > 0){
-        sendAllBtn.style.display = "inline";
-        statusEl.textContent = `已添加 ${paths.length} 个文件到发送列表`;
-      }
-    }
-
-    // 渲染发送列表
-    function renderSendList(){
-      if(sendFiles.length === 0){
-        sendFilesEl.innerHTML = "<p>暂无待发送文件</p>";
-        sendAllBtn.style.display = "none";
-        return;
-      }
-      
-      sendFilesEl.innerHTML = sendFiles.map(f => `
-        <div class="file-item">
-          <span>${f.name} (${formatSize(f.size)})</span>
-          <span>${f.status === "pending" ? "等待发送" : f.status === "sending" ? "发送中..." : f.status === "done" ? "<span class='status-success'>已完成</span>" : "<span class='status-rejected'>被拒绝</span>"}</span>
-          <button onclick="removeSendFile(${f.id})">删除</button>
-        </div>
-      `).join('');
-    }
-
-    // 从发送列表删除文件
-    window.removeSendFile = (id)=>{
-      sendFiles = sendFiles.filter(f => f.id !== id);
-      renderSendList();
-      statusEl.textContent = "已从发送列表移除文件";
-    }
-
-    // 发送全部文件
-    sendAllBtn.onclick = async ()=>{
-      if(isSending){
-        statusEl.textContent = "正在发送中，请稍候...";
-        return;
-      }
-      
-      // 只获取待发送的文件（排除已完成和已拒绝的）
-      const pendingFiles = sendFiles.filter(f => f.status === "pending");
-      if(pendingFiles.length === 0){
-        statusEl.textContent = "没有待发送的文件";
-        return;
-      }
-      
-      sendAllBtn.style.display = "none";
-      
-      if(ws && ws.readyState === WebSocket.OPEN && isReady){
-        statusEl.textContent = "开始建立P2P连接...";
-        isSending = true;
-        
-        // 如果DataChannel还没建立，先创建
-        if(!dc){
-          dc = pc.createDataChannel("file");
-          bindDataChannel();
-          const offer = await pc.createOffer();
-          await pc.setLocalDescription(offer);
-          ws.send(JSON.stringify({type:"offer", data:offer}));
-          console.log("[DEBUG] 创建DataChannel并发送offer");
-          // DataChannel建立后会自动发送文件列表（在bindDataChannel的onopen中）
-        } else {
-          // DataChannel已存在，只发送待发送的文件
-          const fileList = pendingFiles.map(f => ({
-            id: f.id,
-            name: f.name,
-            size: f.size
-          }));
-          dc.send(JSON.stringify({type:"file_list", files: fileList}));
-          console.log("[DEBUG] 发送待发送文件列表:", fileList);
-        }
-      } else if(!ws || ws.readyState !== WebSocket.OPEN){
-        const code = codeInput.value.trim();
-        if(code.length !==6){
-          statusEl.textContent = "请先输入6位传输码";
-          sendAllBtn.style.display = "inline";
-          return;
-        }
-        statusEl.textContent = "正在连接信令服务器...";
-        await connectToSignalServer(code);
-      }
-    }
-
-    // 连接信令服务器
-    async function connectToSignalServer(code){
-      if(ws) ws.close();
-      if(pc) pc.close();
-
-      ws = new WebSocket(`${SIGNAL_URL}?code=${code}`);
-      pc = new RTCPeerConnection({iceServers:STUN_SERVERS});
-
-      pc.onicecandidate = e=>{
-        if(e.candidate && ws && ws.readyState === WebSocket.OPEN){
-          ws.send(JSON.stringify({type:"ice", data:e.candidate}));
-        }
-      }
-
-      pc.ondatachannel = e=>{
-        dc = e.channel;
-        bindDataChannel();
-      }
-
-      ws.onmessage = async (e)=>{
-        const msg = JSON.parse(e.data);
-        if(msg.type === "ready"){
-          isReady = true;
-          statusEl.textContent = "双方已就绪，开始建立P2P连接...";
-          if(sendFiles.length > 0 && !dc){
-            dc = pc.createDataChannel("file");
-            bindDataChannel();
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
-            ws.send(JSON.stringify({type:"offer", data:offer}));
-          }
-        }else if(msg.type === "ice"){
-          await pc.addIceCandidate(new RTCIceCandidate(msg.data));
-        }else if(msg.type === "offer"){
-          await pc.setRemoteDescription(new RTCSessionDescription(msg.data));
-          const answer = await pc.createAnswer();
-          await pc.setLocalDescription(answer);
-          ws.send(JSON.stringify({type:"answer", data:answer}));
-        }else if(msg.type === "answer"){
-          await pc.setRemoteDescription(new RTCSessionDescription(msg.data));
-        }
-      }
-
-      ws.onopen = ()=>{
-        statusEl.textContent = "信令连接成功，等待对方接入";
-      }
-
-      ws.onerror = (err) => {
-        console.error("[DEBUG] WebSocket错误:", err);
-        statusEl.textContent = "WebSocket错误";
-      }
-    }
-
-    // 连接按钮
-    connectBtn.onclick = async ()=>{
-      const code = codeInput.value.trim();
-      if(code.length !==6) return statusEl.textContent = "请输入6位数字传输码";
-      await connectToSignalServer(code);
-    }
-
-    // 绑定DataChannel事件
-    function bindDataChannel(){
-      dc.binaryType = "arraybuffer";
-      dc.onopen = ()=>{
-        console.log("[DEBUG] DataChannel 已打开!");
-        statusEl.textContent = "DataChannel 已打开";
-        if(sendFiles.length > 0){
-          const fileList = sendFiles.map(f => ({
-            id: f.id,
-            name: f.name,
-            size: f.size
-          }));
-          dc.send(JSON.stringify({type:"file_list", files: fileList}));
-        }
-      }
-      dc.onerror = (err) => {
-        console.error("[DEBUG] DataChannel 错误:", err);
-      }
-      dc.onclose = () => {
-        console.log("[DEBUG] DataChannel 已关闭");
-        isSending = false;
-      }
-      dc.onmessage = async (e)=>{
-        if(typeof e.data === "string"){
-          try {
-            const msg = JSON.parse(e.data);
-            if(msg.type === "file_list"){
-              // 接收方收到文件列表，追加新文件（避免重复）
-              const newFiles = msg.files.filter(newFile => 
-                !receiveFiles.some(existing => existing.id === newFile.id)
-              );
-             
-              newFiles.forEach(f => {
-                receiveFiles.push({
-                  ...f,
-                  status: "pending",
-                  receivedBytes: 0
-                });
-              });
-              
-              renderReceiveList();
-              receiveArea.style.display = "block";
-              statusEl.textContent = `收到 ${newFiles.length} 个新文件请求`;
-            }else if(msg.type === "file_select"){
-              // 收到接收方的选择
-              const fileId = msg.fileId;
-              const accept = msg.accept;
-              const file = sendFiles.find(f => f.id === fileId);
-              if(file){
-                if(accept){
-                  file.status = "sending";
-                  renderSendList();
-                  // 开始发送这个文件
-                  await sendFileById(fileId);
-                }else{
-                  file.status = "rejected";
-                  renderSendList();
-                  // 检查是否还有待发送的文件
-                  checkNextFile();
-                }
-              }
-            }else if(msg.type === "ack"){
-              // 收到ACK，继续发送
-              const fileId = msg.fileId;
-              const file = sendFiles.find(f => f.id === fileId);
-              if(file && file.status === "sending"){
-                await sendFileChunk(fileId);
-              }
-            }else if(msg.type === "file_done"){
-              // 文件传输完成
-              const fileId = msg.fileId;
-              const file = sendFiles.find(f => f.id === fileId);
-              if(file){
-                file.status = "done";
-                file.sentBytes = file.size;
-                renderSendList();
-                statusEl.textContent = `文件 ${file.name} 传输完成！`;
-                checkNextFile();
-              }
-            }
-          } catch(err) {
-            console.error("[DEBUG] 解析消息出错:", err);
-          }
-        }else{
-          // 二进制文件块
-          const meta = JSON.parse(sessionStorage.getItem("currentReceive"));
-          if(meta){
-            const file = receiveFiles.find(f => f.id === meta.fileId);
-            if(file && file.status === "receiving"){
-              try {
-                await API.writeChunk(meta.savePath, e.data, file.receivedBytes);
-                file.receivedBytes += e.data.byteLength;
-                if(file.receivedBytes >= file.size){
-                  file.status = "done";
-                  statusEl.textContent = `文件 ${file.name} 接收完成！`;
-                  dc.send(JSON.stringify({type:"file_done", fileId: file.id}));
-                  renderReceiveList();
-                }else{
-                  dc.send(JSON.stringify({type:"ack", fileId: file.id}));
-                }
-              } catch(err) {
-                console.error("[DEBUG] 写入文件块出错:", err);
-              }
-            }
-          }
-        }
-      }
-    }
-
-    // 渲染接收列表
-    function renderReceiveList(){
-      if(receiveFiles.length === 0){
-        receiveFilesEl.innerHTML = "<p>暂无文件</p>";
-        return;
-      }
-      
-      receiveFilesEl.innerHTML = receiveFiles.map(f => `
-        <div class="received-file">
-          <span>${f.name} (${formatSize(f.size)})</span>
-          <span>${f.status === "pending" ? "<span class='status-pending'>待确认</span>" : f.status === "receiving" ? "接收中..." : f.status === "done" ? "<span class='status-success'>已完成</span>" : "<span class='status-rejected'>已拒绝</span>"}</span>
-          ${f.status === "pending" ? `
-            <button onclick="acceptFile(${f.id})">接收</button>
-            <button onclick="rejectFile(${f.id})">拒绝</button>
-          ` : ""}
-        </div>
-      `).join('');
-    }
-
-    // 接收文件
-    window.acceptFile = async (id)=>{
-      const file = receiveFiles.find(f => f.id === id);
-      if(!file || file.status !== "pending") return;
-      
-      const savePath = await API.selectSave(file.name);
-      if(!savePath){
-        statusEl.textContent = "已取消接收";
-        return;
-      }
-      
-      file.status = "receiving";
-      file.receivedBytes = 0;
-      renderReceiveList();
-      statusEl.textContent = `开始接收文件：${file.name}`;
-      
-      // 保存当前接收状态
-      sessionStorage.setItem("currentReceive", JSON.stringify({fileId: id, savePath}));
-      
-      // 通知发送方开始发送
-      dc.send(JSON.stringify({type:"file_select", fileId: id, accept: true}));
-    }
-
-    // 拒绝文件
-    window.rejectFile = (id)=>{
-      const file = receiveFiles.find(f => f.id === id);
-      if(!file || file.status !== "pending") return;
-      
-      file.status = "rejected";
-      renderReceiveList();
-      statusEl.textContent = `已拒绝文件：${file.name}`;
-      
-      // 通知发送方拒绝
-      dc.send(JSON.stringify({type:"file_select", fileId: id, accept: false}));
-    }
-
-    // 发送单个文件
-    async function sendFileById(fileId){
-      const file = sendFiles.find(f => f.id === fileId);
-      if(!file) return;
-      
-      file.sentBytes = 0;
-      statusEl.textContent = `正在发送：${file.name}`;
-      await sendFileChunk(fileId);
-    }
-
-    // 发送文件块
-    async function sendFileChunk(fileId){
-      const file = sendFiles.find(f => f.id === fileId);
-      if(!file || file.status !== "sending") return;
-      
-      if(file.sentBytes >= file.size){
-        return;
-      }
-      
-      const actualChunkSize = Math.min(CHUNK_SIZE, file.size - file.sentBytes);
-      const chunk = await API.readChunk(file.path, file.sentBytes, actualChunkSize);
-      
-      // 先发送文件ID标识
-      dc.send(JSON.stringify({type:"file_chunk_start", fileId: file.id}));
-      await delay(10);
-      dc.send(chunk);
-      
-      file.sentBytes += chunk.byteLength;
-      console.log("[DEBUG] 发送文件块: fileId=", fileId, "offset=", file.sentBytes - chunk.byteLength, "size=", chunk.byteLength);
-    }
-
-    // 检查下一个待发送文件
-    function checkNextFile(){
-      const pendingFile = sendFiles.find(f => f.status === "pending");
-      if(pendingFile){
-        // 等待接收方选择下一个文件
-        statusEl.textContent = `等待对方确认下一个文件...`;
-      }else{
-        isSending = false;
-        const allDone = sendFiles.every(f => f.status === "done");
-        if(allDone){
-          statusEl.textContent = "所有文件传输完成！可以添加新文件继续传输";
-        }else{
-          statusEl.textContent = "当前批次处理完成";
-        }
-        sendAllBtn.style.display = "inline";
-      }
-    }
-
-    // 延迟函数
-    function delay(ms){
-      return new Promise(resolve => setTimeout(resolve, ms));
-    }
-
-    // 格式化文件大小
+    const statusMessage = document.getElementById("statusMessage");
+    const statusTime = document.getElementById("statusTime");
+    const progressContainer = document.getElementById("progressContainer");
+    const progressBar = document.getElementById("progressBar");
+    const progressText = document.getElementById("progressText");
+    const progressDetail = document.getElementById("progressDetail");
+    
+    // ========== 工具函数 ==========
     function formatSize(bytes){
       if(bytes < 1024) return bytes + "B";
       if(bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + "KB";
-      return (bytes / (1024 * 1024)).toFixed(1) + "MB";
+      if(bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + "MB";
+      return (bytes / (1024 * 1024 * 1024)).toFixed(2) + "GB";
     }
+    
+    function updateTime(){
+      const now = new Date();
+      statusTime.textContent = now.toLocaleTimeString();
+    }
+    setInterval(updateTime, 1000);
+    updateTime();
+    
+    function setStatus(msg){
+      statusMessage.textContent = msg;
+    }
+    
+    function setConnectionStatus(status, text){
+      connectionStatus.className = 'status-badge status-' + status;
+      connectionStatus.querySelector('span:last-child').textContent = text;
+    }
+    
+    function showProgress(show){
+      progressContainer.style.display = show ? 'block' : 'none';
+    }
+    
+    function updateProgress(current, total){
+      if(total === 0){ showProgress(false); return; }
+      showProgress(true);
+      const pct = (current / total * 100).toFixed(1);
+      progressBar.style.width = pct + '%';
+      progressText.textContent = pct + '%';
+      progressDetail.textContent = formatSize(current) + ' / ' + formatSize(total);
+    }
+    
+    function getFileIcon(name){
+      const ext = name.split('.').pop().toLowerCase();
+      const icons = {
+        jpg:'🖼️',jpeg:'🖼️',png:'🖼️',gif:'🖼️',bmp:'🖼️',webp:'🖼️',
+        mp4:'🎬',avi:'🎬',mkv:'🎬',mov:'🎬',
+        mp3:'🎵',wav:'🎵',flac:'🎵',
+        pdf:'📄',doc:'📄',docx:'📄',xls:'📄',xlsx:'📄',ppt:'📄',pptx:'📄',
+        zip:'📦',rar:'📦','7z':'📦',tar:'📦',
+        js:'💻',ts:'💻',py:'💻',java:'💻',cpp:'💻',c:'💻',html:'💻',css:'💻'
+      };
+      return icons[ext] || '📄';
+    }
+    
+    // ========== 渲染函数 ==========
+    function renderSendList(){
+      if(sendFiles.length === 0){
+        sendListEl.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">📁</div>
+            <div class="empty-state-text">暂无待发送文件</div>
+          </div>`;
+        sendAllBtn.style.display = 'none';
+        return;
+      }
+      
+      sendListEl.innerHTML = sendFiles.map(f => `
+        <div class="file-item">
+          <div class="file-icon">${getFileIcon(f.name)}</div>
+          <div class="file-info">
+            <div class="file-name" title="${f.name}">${f.name}</div>
+            <div class="file-meta">${formatSize(f.size)}</div>
+          </div>
+          <span class="tag tag-${f.status}">${
+            f.status === 'pending' ? '待发送' :
+            f.status === 'sending' ? '发送中' :
+            f.status === 'done' ? '已完成' : '已拒绝'
+          }</span>
+          ${f.status === 'pending' ? `<button class="btn btn-outline" style="padding:6px 12px;font-size:12px" onclick="removeFile(${f.id})">删除</button>` : ''}
+        </div>
+      `).join('');
+      
+      const hasPending = sendFiles.some(f => f.status === 'pending');
+      sendAllBtn.style.display = hasPending ? 'inline-flex' : 'none';
+    }
+    
+    function renderReceiveList(){
+      if(receiveFiles.length === 0){
+        receiveListEl.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">📥</div>
+            <div class="empty-state-text">暂无收到的文件</div>
+          </div>`;
+        return;
+      }
+      
+      receiveListEl.innerHTML = receiveFiles.map(f => `
+        <div class="file-item">
+          <div class="file-icon">${getFileIcon(f.name)}</div>
+          <div class="file-info">
+            <div class="file-name" title="${f.name}">${f.name}</div>
+            <div class="file-meta">${formatSize(f.size)}</div>
+          </div>
+          <span class="tag tag-${f.status}">${
+            f.status === 'pending' ? '待确认' :
+            f.status === 'receiving' ? '接收中' :
+            f.status === 'done' ? '已完成' : '已拒绝'
+          }</span>
+          ${f.status === 'pending' ? `
+            <button class="btn btn-success" style="padding:6px 12px;font-size:12px" onclick="acceptFile(${f.id})">接收</button>
+            <button class="btn btn-danger" style="padding:6px 12px;font-size:12px" onclick="rejectFile(${f.id})">拒绝</button>
+          ` : ''}
+        </div>
+      `).join('');
+    }
+    
+    // ========== 全局函数 ==========
+    window.removeFile = (id) => {
+      sendFiles = sendFiles.filter(f => f.id !== id);
+      renderSendList();
+      setStatus('已移除文件');
+    };
+    
+    window.acceptFile = async (id) => {
+      const file = receiveFiles.find(f => f.id === id);
+      if(!file) return;
+      
+      const savePath = await API.selectSave(file.name);
+      if(!savePath){ setStatus('已取消接收'); return; }
+      
+      file.status = 'receiving';
+      file.savePath = savePath;
+      file.receivedBytes = 0;
+      currentFileId = id;
+      renderReceiveList();
+      setStatus(`正在接收: ${file.name}`);
+      
+      dc.send(JSON.stringify({type:'file_select', fileId:id, accept:true}));
+    };
+    
+    window.rejectFile = (id) => {
+      const file = receiveFiles.find(f => f.id === id);
+      if(!file) return;
+      
+      file.status = 'rejected';
+      renderReceiveList();
+      setStatus(`已拒绝: ${file.name}`);
+      dc.send(JSON.stringify({type:'file_select', fileId:id, accept:false}));
+    };
+    
+    // ========== 事件处理 ==========
+    genCodeBtn.onclick = () => {
+      const code = String(Math.floor(100000 + Math.random() * 900000));
+      codeInput.value = code;
+      navigator.clipboard.writeText(code);
+      setStatus('已生成传输码并复制');
+    };
+    
+    pickFileBtn.onclick = async () => {
+      const paths = await API.selectFiles();
+      if(!paths || paths.length === 0) return;
+      
+      let added = 0;
+      for(const path of paths){
+        const info = await API.getFileInfo(path);
+        if(info){
+          // 检查是否已存在
+          if(!sendFiles.some(f => f.path === path)){
+            sendFiles.push({
+              id: Date.now() + Math.random(),
+              path, name: info.name, size: info.size,
+              sentBytes: 0, status: 'pending'
+            });
+            added++;
+          }
+        }
+      }
+      
+      renderSendList();
+      setStatus(`已添加 ${added} 个文件`);
+    };
+    
+    sendAllBtn.onclick = async () => {
+      if(isSending){ setStatus('正在传输中...'); return; }
+      
+      const pendingFiles = sendFiles.filter(f => f.status === 'pending');
+      if(pendingFiles.length === 0){ setStatus('没有待发送文件'); return; }
+      
+      sendAllBtn.style.display = 'none';
+      
+      if(ws && ws.readyState === WebSocket.OPEN && isReady){
+        setStatus('开始传输...');
+        isSending = true;
+        
+        if(!dc){
+          dc = pc.createDataChannel('file');
+          bindDataChannel();
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+          ws.send(JSON.stringify({type:'offer', data:offer}));
+        } else {
+          sendFileList(pendingFiles);
+        }
+      } else {
+        const code = codeInput.value.trim();
+        if(code.length !== 6){ setStatus('请输入6位传输码'); sendAllBtn.style.display = 'inline-flex'; return; }
+        setStatus('正在连接...');
+        await connectToSignalServer(code);
+      }
+    };
+    
+    connectBtn.onclick = async () => {
+      const code = codeInput.value.trim();
+      if(code.length !== 6){ setStatus('请输入6位传输码'); return; }
+      await connectToSignalServer(code);
+    };
+    
+    // ========== 连接函数 ==========
+    async function connectToSignalServer(code){
+      if(ws) ws.close();
+      if(pc) pc.close();
+      dc = null;
+      
+      setConnectionStatus('connecting', '连接中...');
+      setStatus('正在连接信令服务器...');
+      connectBtn.disabled = true;
+      
+      ws = new WebSocket(`${SIGNAL_URL}?code=${code}`);
+      pc = new RTCPeerConnection({iceServers:STUN_SERVERS});
+      
+      pc.onicecandidate = e => {
+        if(e.candidate && ws && ws.readyState === WebSocket.OPEN){
+          ws.send(JSON.stringify({type:'ice', data:e.candidate}));
+        }
+      };
+      
+      pc.ondatachannel = e => {
+        dc = e.channel;
+        bindDataChannel();
+      };
+      
+      ws.onmessage = async (e) => {
+        const msg = JSON.parse(e.data);
+        
+        if(msg.type === 'ready'){
+          isReady = true;
+          setConnectionStatus('connected', '已连接');
+          setStatus('连接成功，等待传输...');
+          
+          const pendingFiles = sendFiles.filter(f => f.status === 'pending');
+          if(pendingFiles.length > 0 && !dc){
+            dc = pc.createDataChannel('file');
+            bindDataChannel();
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            ws.send(JSON.stringify({type:'offer', data:offer}));
+          }
+        } else if(msg.type === 'ice'){
+          await pc.addIceCandidate(new RTCIceCandidate(msg.data));
+        } else if(msg.type === 'offer'){
+          await pc.setRemoteDescription(new RTCSessionDescription(msg.data));
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+          ws.send(JSON.stringify({type:'answer', data:answer}));
+        } else if(msg.type === 'answer'){
+          await pc.setRemoteDescription(new RTCSessionDescription(msg.data));
+        }
+      };
+      
+      ws.onopen = () => {
+        setConnectionStatus('connected', '已连接');
+        setStatus('信令连接成功');
+      };
+      
+      ws.onerror = () => {
+        setConnectionStatus('disconnected', '连接失败');
+        setStatus('连接失败，请重试');
+        connectBtn.disabled = false;
+      };
+      
+      ws.onclose = () => {
+        if(isReady) setConnectionStatus('connected', '已连接(P2P)');
+        else { setConnectionStatus('disconnected', '未连接'); connectBtn.disabled = false; }
+      };
+    }
+    
+    // ========== DataChannel ==========
+    function bindDataChannel(){
+      dc.binaryType = 'arraybuffer';
+      
+      dc.onopen = () => {
+        setStatus('P2P连接已建立');
+        const pendingFiles = sendFiles.filter(f => f.status === 'pending');
+        if(pendingFiles.length > 0){
+          sendFileList(pendingFiles);
+        }
+      };
+      
+      dc.onclose = () => {
+        isSending = false;
+        renderSendList();
+        setStatus('连接已关闭');
+      };
+      
+      dc.onmessage = async (e) => {
+        if(typeof e.data === 'string'){
+          const msg = JSON.parse(e.data);
+          
+          if(msg.type === 'file_list'){
+            // 收到文件列表
+            const newFiles = msg.files.filter(f => !receiveFiles.some(r => r.id === f.id));
+            newFiles.forEach(f => receiveFiles.push({...f, status:'pending', receivedBytes:0}));
+            renderReceiveList();
+            setStatus(`收到 ${newFiles.length} 个文件`);
+          } else if(msg.type === 'file_select'){
+            // 收到选择结果
+            const file = sendFiles.find(f => f.id === msg.fileId);
+            if(file){
+              if(msg.accept){
+                file.status = 'sending';
+                currentFileId = msg.fileId;
+                renderSendList();
+                setStatus(`开始发送: ${file.name}`);
+                sendNextChunk(msg.fileId);
+              } else {
+                file.status = 'rejected';
+                renderSendList();
+                setStatus(`对方拒绝: ${file.name}`);
+                checkNextFile();
+              }
+            }
+          } else if(msg.type === 'ack'){
+            sendNextChunk(msg.fileId);
+          } else if(msg.type === 'file_done'){
+            const file = sendFiles.find(f => f.id === msg.fileId);
+            if(file){
+              file.status = 'done';
+              file.sentBytes = file.size;
+              currentFileId = null;
+              renderSendList();
+              showProgress(false);
+              setStatus(`发送完成: ${file.name}`);
+              checkNextFile();
+            }
+          }
+        } else {
+          // 收到文件块
+          const file = receiveFiles.find(f => f.id === currentFileId);
+          if(file && file.status === 'receiving'){
+            try {
+              await API.writeChunk(file.savePath, e.data, file.receivedBytes);
+              file.receivedBytes += e.data.byteLength;
+              updateProgress(file.receivedBytes, file.size);
+              
+              if(file.receivedBytes >= file.size){
+                file.status = 'done';
+                currentFileId = null;
+                renderReceiveList();
+                showProgress(false);
+                setStatus(`接收完成: ${file.name}`);
+                dc.send(JSON.stringify({type:'file_done', fileId:file.id}));
+              } else {
+                dc.send(JSON.stringify({type:'ack', fileId:file.id}));
+              }
+            } catch(err) {
+              console.error('[DEBUG] 写入错误:', err);
+            }
+          }
+        }
+      };
+    }
+    
+    function sendFileList(files){
+      dc.send(JSON.stringify({type:'file_list', files:files.map(f => ({id:f.id, name:f.name, size:f.size}))}));
+      setStatus(`正在传输 ${files.length} 个文件...`);
+    }
+    
+    async function sendNextChunk(fileId){
+      const file = sendFiles.find(f => f.id === fileId);
+      if(!file || file.status !== 'sending') return;
+      
+      if(file.sentBytes >= file.size) return;
+      
+      const chunkSize = Math.min(CHUNK_SIZE, file.size - file.sentBytes);
+      const chunk = await API.readChunk(file.path, file.sentBytes, chunkSize);
+      
+      dc.send(JSON.stringify({type:'file_chunk_start', fileId:file.id}));
+      await new Promise(r => setTimeout(r, 10));
+      dc.send(chunk);
+      
+      file.sentBytes += chunk.byteLength;
+      updateProgress(file.sentBytes, file.size);
+    }
+    
+    function checkNextFile(){
+      const next = sendFiles.find(f => f.status === 'pending');
+      if(next){
+        setStatus('等待对方确认...');
+      } else {
+        isSending = false;
+        const allDone = sendFiles.every(f => f.status === 'done');
+        if(allDone && sendFiles.length > 0){
+          setStatus('所有文件传输完成！');
+        }
+        renderSendList();
+      }
+    }
+    
+    // ========== 初始化 ==========
+    renderSendList();
+    renderReceiveList();
   </script>
 </body>
 </html>
