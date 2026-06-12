@@ -1,0 +1,59 @@
+{
+  "name": "p2pfile",
+  "version": "1.0.0",
+  "main": "main.js",
+  "engines": {
+    "node": "18.16.0"
+  },
+  "scripts": {
+    "dev": "cross-env NODE_ENV2=development electron .",
+    "build": "cross-env NODE_ENV2=production electron-builder --win",
+    "build:mac": "electron-builder --mac"
+  },
+  "description": "文件p2p传输工具",
+  "build": {
+    "appId": "com.houdawei.p2pfile",
+    "productName": "文件p2p传输工具",
+    "asar": true,
+    "compression": "maximum",
+    "win": {
+      "target": "nsis",
+      "icon": "logo/icon.png"
+    },
+    "mac": {
+      "category": "public.app-category.business",
+      "icon": "logo/logo.icns",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "entitlements.mac.plist",
+      "entitlementsInherit": "entitlements.mac.plist"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": false
+    },
+    "afterPack": "./remove-locales.js",
+    "files": [
+      "!**/*.map",
+      "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
+      "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}",
+      "!**/node_modules/.bin",
+      "!**/*git*"
+    ],
+    "asarUnpack": [
+      "bin/**"
+    ]
+  },
+  "devDependencies": {
+    "cross-env": "^10.1.0",
+    "electron": "^27.3.11",
+    "electron-builder": "^24.13.3",
+    "ws": "^8.21.0"
+  }
+}
