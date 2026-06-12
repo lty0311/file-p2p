@@ -24,11 +24,18 @@ function createWindow(){
 
 app.whenReady().then(createWindow);
 
-// 渲染层请求读取本地文件
+// 渲染层请求读取本地文件（单选）
 ipcMain.handle("select-file", async ()=>{
   const res = await dialog.showOpenDialog({properties:["openFile"]});
   if(res.canceled) return null;
   return res.filePaths[0];
+})
+
+// 渲染层请求读取本地文件（多选）
+ipcMain.handle("select-files", async ()=>{
+  const res = await dialog.showOpenDialog({properties:["openFile", "multiSelections"]});
+  if(res.canceled) return [];
+  return res.filePaths;
 })
 
 // 读取文件流式buffer（分块读取，不占内存）
