@@ -19,10 +19,16 @@
     <input id="codeInput" maxlength="6" placeholder="输入6位数字">
     <button id="genCode">生成随机码</button>
     <button id="connectBtn">连接对方</button>
+    <button id="resetBtn" style="display:none">重置</button>
   </div>
   <div class="box">
     <button id="pickFile">选择要发送的文件</button>
     <div id="fileTip"></div>
+  </div>
+  <div id="receiveArea" style="display:none;">
+    <div id="receiveFileInfo"></div>
+    <button id="receiveBtn">接收</button>
+    <button id="rejectBtn">拒绝</button>
   </div>
   <div id="progress"><div id="bar"></div></div>
   <div id="status">等待连接...</div>
@@ -54,6 +60,72 @@
     const connectBtn = document.getElementById("connectBtn");
     const pickFileBtn = document.getElementById("pickFile");
     const fileTip = document.getElementById("fileTip");
+    const resetBtn = document.getElementById("resetBtn");
+    const receiveArea = document.getElementById("receiveArea");
+    const receiveFileInfo = document.getElementById("receiveFileInfo");
+    const receiveBtn = document.getElementById("receiveBtn");
+    const rejectBtn = document.getElementById("rejectBtn");
+
+    // 重置状态（支持再次传输）
+    function resetState(){
+      console.log("[DEBUG] 重置状态");
+      if(ws){
+        ws.close();
+        ws = null;
+      }
+      if(pc){
+        pc.close();
+        pc = null;
+      }
+      if(dc){
+        dc.close();
+        dc = null;
+      }
+      localFilePath = "";
+      saveFilePath = "";
+      fileSize = 0;
+      sentBytes = 0;
+      receivedBytes = 0;
+      isReady = false;
+      barEl.style.width = "0%";
+      fileTip.textContent = "";
+      receiveArea.style.display = "none";
+      statusEl.textContent = "等待连接...";
+      connectBtn.disabled = false;
+      pickFileBtn.disabled = false;
+    }
+
+    // 重置按钮
+    resetBtn.onclick = ()=>{
+      resetState();
+      resetBtn.style.display = "none";
+    }
+
+    // 接收按钮 - 接收方确认接收
+    receiveBtn.onclick = async ()=>{
+      const fileName = window.receiveFileName || "unknown";
+      // 选择保存路径
+      saveFilePath = await API.selectSave(fileName);
+      if(!saveFilePath){
+        statusEl.textContent = "已取消接收";
+        receiveArea.style.display = "none";
+        return;
+      }
+      // 隐藏接收区域
+      receiveArea.style.display = "none";
+      statusEl.textContent = `开始接收文件：${fileName} 总大小：${formatSize(fileSize)}`;
+      // 通知发送方已准备好接收
+      dc.send(JSON.stringify({type:"save_ready"}));
+      console.log("[DEBUG] 发送保存准备就绪消息");
+    }
+
+    // 拒绝按钮 - 接收方拒绝接收
+    rejectBtn.onclick = ()=>{
+      receiveArea.style.display = "none";
+      statusEl.textContent = "已拒绝接收文件";
+      dc.send(JSON.stringify({type:"save_rejected"}));
+      console.log("[DEBUG] 发送拒绝接收消息");
+    }
 
     // 生成6位随机传输码
     genCodeBtn.onclick = ()=>{
@@ -238,17 +310,18 @@
               console.log("[DEBUG] 收到p2p_ready");
             }else if(meta.type === "file_meta"){
               console.log("[DEBUG] 收到文件元信息:", meta);
-              // 接收方选择保存路径，传入默认文件名
-              saveFilePath = await API.selectSave(meta.name);
-              if(!saveFilePath){
-                statusEl.textContent = "已取消接收";
-                return;
-              }
+              // 显示接收确认区域
+              receiveFileInfo.textContent = `对方要发送文件：${meta.name}，大小：${formatSize(meta.size)}`;
+              receiveArea.style.display = "block";
+              statusEl.textContent = "等待您确认是否接收";
+              // 保存文件信息供后续使用
               fileSize = meta.size;
-              statusEl.textContent = `接收文件：${meta.name} 总大小：${formatSize(fileSize)}`;
-              // 通知发送方已准备好接收
-              dc.send(JSON.stringify({type:"save_ready"}));
-              console.log("[DEBUG] 发送保存准备就绪消息");
+              window.receiveFileName = meta.name;
+            }else if(meta.type === "save_rejected"){
+              console.log("[DEBUG] 收到接收方拒绝消息");
+              statusEl.textContent = "对方已拒绝接收文件";
+              // 显示重置按钮，支持重新传输
+              resetBtn.style.display = "inline";
             }else if(meta.type === "save_ready"){
               console.log("[DEBUG] 收到接收方准备就绪消息，开始发送文件");
               statusEl.textContent = "接收方已就绪，开始发送文件...";
@@ -273,6 +346,12 @@
             await API.writeChunk(saveFilePath, e.data, receivedBytes);
             receivedBytes += e.data.byteLength;
             updateProgress(receivedBytes, fileSize);
+            // 检查是否传输完成
+            if(receivedBytes >= fileSize){
+              statusEl.textContent = "文件接收完成！";
+              resetBtn.style.display = "inline";
+              return;
+            }
             // 回发ACK，请求下一分块
             dc.send(JSON.stringify({type:"ack", offset:receivedBytes}));
             console.log("[DEBUG] 写入文件块: offset=", receivedBytes - e.data.byteLength, "size=", e.data.byteLength);
@@ -288,6 +367,8 @@
       if(sentBytes >= fileSize) {
         statusEl.textContent = "文件传输完成！";
         console.log("[DEBUG] 文件传输完成!");
+        // 显示重置按钮，支持重新传输
+        resetBtn.style.display = "inline";
         return;
       }
       // 计算实际要发送的块大小（不能超过剩余字节数）
