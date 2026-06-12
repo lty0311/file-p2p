@@ -24,6 +24,10 @@
   <div class="box">
     <button id="pickFile">选择要发送的文件</button>
     <div id="fileTip"></div>
+    <div id="sendArea" style="display:none;">
+      <button id="sendConfirmBtn">确认发送</button>
+      <button id="sendCancelBtn">取消</button>
+    </div>
   </div>
   <div id="receiveArea" style="display:none;">
     <div id="receiveFileInfo"></div>
@@ -61,6 +65,9 @@
     const pickFileBtn = document.getElementById("pickFile");
     const fileTip = document.getElementById("fileTip");
     const resetBtn = document.getElementById("resetBtn");
+    const sendArea = document.getElementById("sendArea");
+    const sendConfirmBtn = document.getElementById("sendConfirmBtn");
+    const sendCancelBtn = document.getElementById("sendCancelBtn");
     const receiveArea = document.getElementById("receiveArea");
     const receiveFileInfo = document.getElementById("receiveFileInfo");
     const receiveBtn = document.getElementById("receiveBtn");
@@ -89,10 +96,12 @@
       isReady = false;
       barEl.style.width = "0%";
       fileTip.textContent = "";
+      sendArea.style.display = "none";
       receiveArea.style.display = "none";
       statusEl.textContent = "等待连接...";
       connectBtn.disabled = false;
       pickFileBtn.disabled = false;
+      window.receiveFileName = "";
     }
 
     // 重置按钮
@@ -144,17 +153,38 @@
       if(!info) return;
       fileSize = info.size;
       fileTip.textContent = `待发送：${info.name} 大小：${formatSize(fileSize)}`;
-      
+      // 显示确认发送按钮
+      sendArea.style.display = "block";
+      statusEl.textContent = "已选择文件，请确认发送";
+    }
+
+    // 确认发送按钮
+    sendConfirmBtn.onclick = async ()=>{
+      sendArea.style.display = "none";
+      statusEl.textContent = "等待对方连接...";
       // 如果已经连接到信令服务器且收到ready消息，立即发起打洞
       if(ws && ws.readyState === WebSocket.OPEN && isReady && !dc){
-        statusEl.textContent = "已选择文件，开始建立P2P连接...";
+        statusEl.textContent = "开始建立P2P连接...";
         dc = pc.createDataChannel("file");
         bindDataChannel();
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
         ws.send(JSON.stringify({type:"offer", data:offer}));
-        console.log("[DEBUG] 选择文件后发送offer");
+        console.log("[DEBUG] 确认发送后发送offer");
+      } else if(!ws || ws.readyState !== WebSocket.OPEN){
+        statusEl.textContent = "请先连接对方";
+      } else {
+        statusEl.textContent = "等待对方连接...";
       }
+    }
+
+    // 取消发送按钮
+    sendCancelBtn.onclick = ()=>{
+      sendArea.style.display = "none";
+      fileTip.textContent = "";
+      localFilePath = "";
+      fileSize = 0;
+      statusEl.textContent = "已取消发送";
     }
 
     // 连接信令服务器，开始打洞
