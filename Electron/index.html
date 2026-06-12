@@ -160,7 +160,7 @@
   <script>
     const API = window.electronAPI;
     // ========== 配置 ==========
-    const SIGNAL_URL = "ws://192.168.20.29:8080";
+    const SIGNAL_URL = "wss://p2pfile.cool-emoji.com/signal";
     const STUN_SERVERS = [{urls:"stun:stun.cloudflare.com:3478"}, {urls:"stun:stun.qq.com:3478"}];
     const CHUNK_SIZE = 256 * 1024;
     
@@ -463,8 +463,13 @@
       };
       
       ws.onclose = () => {
-        if(isReady) setConnectionStatus('connected', '已连接(P2P)');
-        else { setConnectionStatus('disconnected', '未连接'); connectBtn.disabled = false; }
+        // 检查DataChannel是否还活着
+        if(dc && dc.readyState === 'open'){
+          setConnectionStatus('connected', '已连接(P2P)');
+        } else {
+          setConnectionStatus('disconnected', '未连接');
+          connectBtn.disabled = false;
+        }
       };
     }
     
