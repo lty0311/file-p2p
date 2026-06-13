@@ -1,0 +1,111 @@
+name: Build Electron App
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.16.0'
+          cache: 'npm'
+          cache-dependency-path: 'Electron/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: Electron
+        run: npm install
+
+      - name: Build Windows exe
+        working-directory: Electron
+        run: npm run build
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: shanlian-linghu-windows
+          path: Electron/dist/*.exe
+          retention-days: 30
+
+  build-mac:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.16.0'
+          cache: 'npm'
+          cache-dependency-path: 'Electron/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: Electron
+        run: npm install
+
+      - name: Build macOS app
+        working-directory: Electron
+        run: npm run build:mac
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: shanlian-linghu-macos
+          path: Electron/dist/*.dmg
+          retention-days: 30
+
+  release:
+    needs: [build-windows, build-mac]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: shanlian-linghu-windows
+          path: ./windows
+
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: shanlian-linghu-macos
+          path: ./macos
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            windows/*.exe
+            macos/*.dmg
+          body: |
+            ## 🦊 闪联灵狐 - P2P 文件传输工具
+            
+            ### 更新内容
+            - 请查看提交记录了解详细更新
+            
+            ### 下载说明
+            - **Windows**: 下载 `.exe` 安装包，双击安装即可使用
+            - **macOS**: 下载 `.dmg` 文件，拖拽到 Applications 目录
+            
+            ### 使用方法
+            1. 手机端访问 https://p2pfile.cool-emoji.com/
+            2. 电脑端安装本软件
+            3. 双方输入相同的传输码即可传输文件
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
