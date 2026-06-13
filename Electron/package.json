@@ -1,5 +1,5 @@
 {
-  "name": "p2pfile",
+  "name": "shanlian-linghu",
   "version": "1.0.0",
   "main": "main.js",
   "engines": {
@@ -10,10 +10,10 @@
     "build": "cross-env NODE_ENV2=production electron-builder --win",
     "build:mac": "electron-builder --mac"
   },
-  "description": "文件p2p传输工具",
+  "description": "闪联灵狐 - P2P文件传输工具",
   "build": {
-    "appId": "com.houdawei.p2pfile",
-    "productName": "文件p2p传输工具",
+    "appId": "com.houdawei.shanlian-linghu",
+    "productName": "闪联灵狐",
     "asar": true,
     "compression": "maximum",
     "win": {
