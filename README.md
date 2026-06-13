@@ -188,9 +188,9 @@ file-p2p/
 
 ## 📞 联系方式
 
-- 项目地址：[GitHub](https://github.com/xxx/file-p2p)
-- 问题反馈：[Issues](https://github.com/xxx/file-p2p/issues)
+- 项目地址：[GitHub](https://github.com/lty0311/file-p2p)
+- 问题反馈：[Issues](https://github.com/lty0311/file-p2p/issues)
 
 ---
 
-> **一句话总结**：用「闪联灵狐」，手机打开网页，电脑安装程序，输入同一个传输码，大文件秒传！完全隐私，完全免费，完全开源。
+> **一句话**：用「闪联灵狐」，手机打开网页，电脑安装程序，输入同一个传输码，大文件秒传！完全隐私，完全免费，完全开源。
