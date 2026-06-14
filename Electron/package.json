@@ -13,7 +13,7 @@
   "description": "闪联灵狐 - P2P文件传输工具",
   "build": {
     "appId": "com.houdawei.shanlian-linghu",
-    "productName": "闪联灵狐",
+    "productName": "ShanLianLingHu",
     "asar": true,
     "compression": "maximum",
     "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
