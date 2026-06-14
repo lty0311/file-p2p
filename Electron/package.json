@@ -16,6 +16,7 @@
     "productName": "闪联灵狐",
     "asar": true,
     "compression": "maximum",
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
     "win": {
       "target": "nsis",
       "icon": "logo/icon.png"
@@ -36,7 +37,8 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "createStartMenuShortcut": false
+      "createStartMenuShortcut": false,
+      "artifactName": "${productName}-Setup-${version}-${arch}.${ext}"
     },
     "afterPack": "./remove-locales.js",
     "files": [
