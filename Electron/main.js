@@ -1,6 +1,7 @@
-const {app, BrowserWindow, ipcMain, dialog, Menu} = require('electron');
+const {app, BrowserWindow, ipcMain, dialog, Menu, shell} = require('electron');
 const path = require('path');
 const fs = require('fs');
+const { version } = require('./package.json');
 
 app.disableHardwareAcceleration();
 Menu.setApplicationMenu(null);
@@ -19,7 +20,7 @@ function createWindow(){
   })
   mainWin.loadFile("index.html");
   // 开发打开控制台
-  // mainWin.webContents.openDevTools();
+  mainWin.webContents.openDevTools();
 //   if (process.env.NODE_ENV2 === 'development') {
 //     mainWin.webContents.openDevTools();
 //   }
@@ -92,5 +93,23 @@ ipcMain.handle("get-file-info", async (_, filePath)=>{
     };
   } catch(e) {
     return null;
+  }
+})
+
+// 获取版本号
+ipcMain.handle("get-version", async ()=>{
+  console.log("[Main] 获取版本号: ", version);
+  return version;
+})
+
+// 在系统默认浏览器中打开 URL
+ipcMain.handle("open-external-url", async (_, url)=>{
+  try {
+    await shell.openExternal(url);
+    console.log('打开外部链接:', url);
+    return true;
+  } catch(err) {
+    console.error('打开外部链接失败:', err);
+    return false;
   }
 })

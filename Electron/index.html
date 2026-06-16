@@ -610,12 +610,24 @@
     renderSendList();
     renderReceiveList();
 
+    // 全局函数：跨环境打开链接
+    // Electron 用默认浏览器，浏览器用新标签
+    window.openExternalUrl = function(url) {
+      if (window.electronAPI && window.electronAPI.openExternal) {
+        window.electronAPI.openExternal(url);
+        console.log('[Notice] 使用默认浏览器打开:', url);
+      } else {
+        window.open(url, '_blank');
+        console.log('[Notice] 使用新标签打开:', url);
+      }
+    };
+    
     // 动态加载通知脚本（类似 JSONP）
     // 通过 fetch 获取并执行远程脚本（绕过 Electron 的安全策略）
     async function loadNoticeScript() {
       try {
-        // 获取当前客户端版本
-        const currentVersion = window.electronAPI ? window.electronAPI.getVersion() : '1.0.0';
+        // 获取当前客户端版本（IPC 调用返回 Promise）
+        const currentVersion = window.electronAPI ? await window.electronAPI.getVersion() : '1.0.0';
         console.log('[Notice] 当前版本:', currentVersion);
         
         console.log('[Notice] 开始加载通知脚本...');
