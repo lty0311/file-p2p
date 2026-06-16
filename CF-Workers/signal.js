@@ -2,6 +2,7 @@
 // 使用 Durable Objects 实现跨实例状态共享
 
 import INDEX_HTML from "./index.html";
+import { generateNoticeScript } from "./notice.js";
 
 // Durable Object 类 - 管理单个传输房间
 export class SignalRoom {
@@ -97,6 +98,26 @@ export default {
       
       // 将请求转发给 Durable Object
       return obj.fetch(request);
+    }
+    
+    // 通知接口 - 返回可执行的 JavaScript 代码（类似 JSONP）
+    if(url.pathname === "/notice"){
+      // 获取客户端版本号
+      const clientVersion = url.searchParams.get('version') || '1.0.0';
+      console.log('[Notice] 客户端版本:', clientVersion);
+      
+      // 根据版本号生成动态脚本
+      const script = generateNoticeScript(clientVersion);
+      
+      return new Response(script, {
+        headers: {
+          "Content-Type": "application/javascript;charset=utf-8",
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type",
+          "Cache-Control": "no-cache, must-revalidate"
+        }
+      });
     }
     
     return new Response("Signal Server Ready (Durable Objects)", {status:200});
