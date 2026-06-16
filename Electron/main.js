@@ -20,7 +20,7 @@ function createWindow(){
   })
   mainWin.loadFile("index.html");
   // 开发打开控制台
-  mainWin.webContents.openDevTools();
+  // mainWin.webContents.openDevTools();
 //   if (process.env.NODE_ENV2 === 'development') {
 //     mainWin.webContents.openDevTools();
 //   }

@@ -105,10 +105,16 @@ export default {
       // 获取客户端版本号
       const clientVersion = url.searchParams.get('version') || '1.0.0';
       console.log('[Notice] 客户端版本:', clientVersion);
-      
+
+      // 从环境变量读取配置
+      const config = {
+        LATEST_VERSION: env.LATEST_VERSION,
+        DOWNLOAD_URL: env.DOWNLOAD_URL
+      };
+
       // 根据版本号生成动态脚本
-      const script = generateNoticeScript(clientVersion);
-      
+      const script = generateNoticeScript(clientVersion, config);
+
       return new Response(script, {
         headers: {
           "Content-Type": "application/javascript;charset=utf-8",

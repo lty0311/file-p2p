@@ -1,12 +1,13 @@
 // 通知脚本生成器
 // 根据客户端版本号动态生成脚本
 
-const UPDATE_CONFIG = {
-  latestVersion: '1.1.0',
-  downloadUrl: 'https://github.com/lty0311/file-p2p/releases'
-};
+export function generateNoticeScript(clientVersion, config = {}) {
+  // 合并默认配置和环境变量配置
+  const UPDATE_CONFIG = {
+    latestVersion: config.LATEST_VERSION || '1.1.0',
+    downloadUrl: config.DOWNLOAD_URL || 'https://github.com/lty0311/file-p2p/releases'
+  };
 
-export function generateNoticeScript(clientVersion) {
   function compareVersions(v1, v2) {
     const parts1 = v1.split('.').map(Number);
     const parts2 = v2.split('.').map(Number);
@@ -108,5 +109,3 @@ export function generateNoticeScript(clientVersion) {
 
   return script;
 }
-
-export default UPDATE_CONFIG;
